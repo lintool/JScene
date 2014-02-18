@@ -1,7 +1,8 @@
 <!doctype html>
 <html>
 <head>
-<script type="text/javascript" src="tweets.js"></script></script>
+<!--script type="text/javascript" src="tweets.js"></script></script-->
+<script type="text/javascript" src="out.js"></script></script>
 </head>
  
 <body>
@@ -32,6 +33,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     document.querySelector("#indexButton").addEventListener("click", index, false);
     document.querySelector("#searchButton").addEventListener("click", search, false);
+    document.querySelector("#statsButton").addEventListener("click", stats, false);
   }
  
   openRequest.onerror = function(e) {
@@ -40,71 +42,110 @@ document.addEventListener("DOMContentLoaded", function() {
  
 }, false);
 
-function search(e) {
+function stats(e) {
   var query = document.querySelector("#query").value;
-  var transaction = db.transaction(["postings"],"readonly");
+  var transaction = db.transaction(["postings"], "readonly");
   var store = transaction.objectStore("postings");
 
-  var d = new Date();
-  var startTime = d.getTime()
+  var request = store.count();
+  request.onsuccess = function(e) {
+    console.log("Total number of entries: " + e.target.result);
+    return;
+  }
+}
 
-  console.log("Start time: " + startTime);
+function search(e) {
+  var query = document.querySelector("#query").value;
+  var transaction = db.transaction(["postings"], "readonly");
+  var store = transaction.objectStore("postings");
 
-  var range = IDBKeyRange.bound(query, query + ".", true);
+  var startTime = new Date().getTime();
+
+  //console.log("Start time: " + startTime);
+
+  var range = IDBKeyRange.bound(query + "#", query + ".");
   var cursor = store.openCursor(range);
 
   var cnt = 0;
 
+  var results = [];
   cursor.onsuccess = function(e) {
     var res = e.target.result;
-    if( res) {
+    if (res) {
       var parts = res.key.split("#");
-      if ( parts[0] == query ) {
-        console.log(parts[0], parts[1]);
-        cnt++;
-        res.continue();
-      } else {
-        console.log(cnt);
-        console.log("Time taken: " + (d.getTime() - startTime));
-      }
+    }
+
+    if ( res && parts[0] == query ) {
+      //console.log(parts[0], parts[1], parts[2]);
+      results.push(parts[1]);
+      cnt++;
+      res.continue();
+    }
+
+    if ( !res || parts[0] != query ) {
+      var end = new Date().getTime();
+      //console.log("End time: " + end);
+      console.log(results.length + " hits: " + results);
+      console.log((end-startTime) + "ms");
     }
   };
 
 }
 
 
+var gNumTweets = 0;
+var gNumTokens = 0;
+
+var gIndexStartTime;
+
 function index(e) {
-  var cnt = 0;
+  gIndexStartTime = new Date().getTime();
+  index_tweet(0);
+}
 
-  for (var i=0; i<tweets.length; i++ ) {
-    var tokens = tweets[i].text.split(' ');
+function index_tweet(i) {
+  gNumTweets++;
+  var tokens = tweets[i].text.split(' ');
 
-    tokens = 
-      tokens
-        .map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
-        .filter(function(x) { return x.length > 0 ? true : false; });
+  tokens = 
+    tokens
+      .map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
+      .filter(function(x) { return x.length > 0 ? true : false; });
 
-    console.log(tweets[i].id + ' ' + tokens);
+  console.log(tweets[i].id + ' ' + tokens);
 
-    for (var j=0; j<tokens.length; j++) {
-      var transaction = db.transaction(["postings"],"readwrite");
-      var store = transaction.objectStore("postings");
-
-      var t = tokens[j] + '#' + tweets[i].id;
-
-      var request = store.add(1, t);
+  index_term(i, 0, tokens);
+}
  
-      request.onerror = function(e) {
-        console.log("Error", e.target.error.name);
-      }
 
-      request.onsuccess = function(e) {
-        console.log("ok");
-      }
-    cnt++;
+function index_term(i, j, tokens) {
+  gNumTokens++;
+  var transaction = db.transaction(["postings"],"readwrite");
+  var store = transaction.objectStore("postings");
+
+  var t = tokens[j] + '#' + tweets[i].id + '#' + j;
+
+  var request = store.add(1, t);
+ 
+  request.onerror = function(e) {
+    console.log("Error", e.target.error.name);
+  }
+
+  request.onsuccess = function(e) {
+    //console.log("ok: " +  t);
+    if (j < tokens.length-1) {
+      index_term(i, j+1, tokens);
+    } else if (i < tweets.length-1) {
+      index_tweet(i+1)
+    } else {
+      var end = new Date().getTime();
+      console.log("Number of tweets indexed: " + gNumTweets);
+      console.log("Number of tokens indexed: " + gNumTokens);
+      //console.log("Start time: " + gIndexStartTime);
+      //console.log("End time: " + end);
+      console.log("Indexing time: " + (end - gIndexStartTime) + "ms");
     }
   }
-  console.log("total number of tokens: " + cnt);
 }
 
 // indexedDB.deleteDatabase('todos')
@@ -117,7 +158,10 @@ function index(e) {
 <p>
 term: <input type="text" id="query" placeholder="query"><br/>
 <button id="searchButton">Get</button>
- 
+
+<p>
+<button id="statsButton">Stats</button>
+
 </body>
 </html>
  
