@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+<script type="text/javascript" src="tweets.js"></script></script>
+</head>
+ 
+<body>
+ 
+<script>
+var db;
+ 
+function indexedDBOk() {
+    return "indexedDB" in window;
+}
+ 
+document.addEventListener("DOMContentLoaded", function() {
+ 
+    //No support? Go in the corner and pout.
+    if(!indexedDBOk) return;
+ 
+    var openRequest = indexedDB.open("index", 1);
+ 
+    openRequest.onupgradeneeded = function(e) {
+        var thisDB = e.target.result;
+ 
+        if(!thisDB.objectStoreNames.contains("postings")) {
+            thisDB.createObjectStore("postings");
+        }
+    }
+ 
+    openRequest.onsuccess = function(e) {
+        console.log("running onsuccess");
+
+        db = e.target.result;
+ 
+        //Listen for add clicks
+        document.querySelector("#addButton").addEventListener("click", addPerson, false);
+        document.querySelector("#getButton").addEventListener("click", getPerson, false);
+    }
+ 
+    openRequest.onerror = function(e) {
+        //Do something for the error
+    }
+ 
+},false);
+
+function getPerson(e) {
+var query = document.querySelector("#query").value;
+
+    var transaction = db.transaction(["postings"],"readonly");
+    var store = transaction.objectStore("postings");
+
+var d = new Date();
+var startTime = d.getTime()
+
+console.log(startTime);
+var range = IDBKeyRange.bound(query, query + ".", true);
+var cursor = store.openCursor(range);
+
+
+var cnt = 0;
+cursor.onsuccess = function(e) {
+  var res = e.target.result;
+  if(res) {
+    var parts = res.key.split("#");
+    if ( parts[0] == query ) {
+      console.log(parts[0], parts[1]);
+      cnt++;
+      res.continue();
+    } else {
+    console.log(cnt);
+console.log("Time taken: " + (d.getTime() - startTime));
+    }
+  }
+}
+
+}
+
+
+function addPerson(e) {
+var cnt = 0;
+for (var i=0; i<tweets.length; i++ ) {
+  var tokens = tweets[i].text.split(' ');
+
+  tokens = 
+    tokens
+      .map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
+      .filter(function(x) { return x.length > 0 ? true : false; });
+
+    console.log(tweets[i].id + ' ' + tokens);
+
+  for (var j=0; j<tokens.length; j++) {
+    var transaction = db.transaction(["postings"],"readwrite");
+    var store = transaction.objectStore("postings");
+
+    var t = tokens[j] + '#' + tweets[i].id;
+    //console.log(t);
+
+    var request = store.add(1, t);
+ 
+    request.onerror = function(e) {
+        console.log("Error", e.target.error.name);
+        //some type of error handler
+    }
+ 
+    request.onsuccess = function(e) {
+        console.log("ok");
+    }
+
+    cnt++;
+
+  }
+}
+
+console.log("total number of tokens: " + cnt);
+ 
+}
+
+
+    function sleep(delay) {
+        var start = new Date().getTime();
+        while (new Date().getTime() < start + delay);
+      }
+
+// indexedDB.deleteDatabase('todos')
+</script>
+ 
+<button id="addButton">Add Data</button>
+
+
+
+<p>
+term: <input type="text" id="query" placeholder="query"><br/>
+<button id="getButton">Get</button>
+ 
+</body>
+</html>
+ 
+
+
