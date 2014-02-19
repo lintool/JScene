@@ -1,13 +1,14 @@
 <!doctype html>
 <html>
 <head>
-<script type="text/javascript" src="tweets.js"></script></script>
-<!--script type="text/javascript" src="test-large.js"></script></script-->
+<!--script type="text/javascript" src="tweets.js"></script></script-->
+<script type="text/javascript" src="sample-tweets.js"></script></script>
 </head>
  
 <body>
  
 <script>
+var sep = "+";
 var db;
  
 function indexedDBOk() {
@@ -17,6 +18,8 @@ function indexedDBOk() {
 document.addEventListener("DOMContentLoaded", function() {
   if (!indexedDBOk) return;
 
+  //indexedDB.deleteDatabase("index");
+
   var openRequest = indexedDB.open("index", 1);
 
   openRequest.onupgradeneeded = function(e) {
@@ -24,6 +27,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (!thisDB.objectStoreNames.contains("postings")) {
       thisDB.createObjectStore("postings");
+    }
+
+    if (!thisDB.objectStoreNames.contains("df")) {
+      thisDB.createObjectStore("df");
     }
   }
 
@@ -33,7 +40,9 @@ document.addEventListener("DOMContentLoaded", function() {
     document.querySelector("#indexButton").addEventListener("click", index, false);
     document.querySelector("#searchButton").addEventListener("click", search, false);
     document.querySelector("#statsButton").addEventListener("click", stats, false);
-    console.log("Initialization complete, index opened!");
+    document.querySelector("#dfButton").addEventListener("click", buildDf, false);
+
+    console.log("Initialization complete!");
   }
  
   openRequest.onerror = function(e) {
@@ -54,10 +63,69 @@ function stats(e) {
   }
 }
 
+// IDF
+
+function buildDf(e) {
+  var DF = {};
+  for (var i=0; i<tweets.length; i++) {
+    var tokens = tokenizeToHistogram(tweets[i].text);
+    for (var t in tokens) {
+      if (t in DF) {
+        DF[t]++;
+      } else {
+        DF[t] = 1;
+      }
+    }
+  }
+
+  var tuples = [];
+  for (var key in DF) tuples.push([key, DF[key]]);
+
+  insert_df(0, tuples);
+}
+
+function insert_df(i, tuples) {
+  var transaction = db.transaction(["df"],"readwrite");
+  var store = transaction.objectStore("df");
+  var request = store.add(tuples[i][1], tuples[i][0]);
+ 
+  //console.log(tuples[i][1], tuples[i][0]);
+  request.onerror = function(e) {
+    console.log("Error", e.target.error.name);
+  }
+
+  request.onsuccess = function(e) {
+    if (i < tuples.length-1) {
+      insert_df(i+1, tuples);
+    } else {
+      console.log("inserted " + tuples.length + " dfs");
+    }
+  }
+}
+
+
+// Querying
+
 var query_terms;
+var DF = {};
 
 function search(e) {
   query_terms = document.querySelector("#query").value.split(" ");
+
+  for (var i=0; i<query_terms.length; i++) {
+    var transaction = db.transaction(["df"],"readonly");
+    var store = transaction.objectStore("df");
+    var request = store.get(query_terms[i]);
+ 
+    request.onerror = function(e) {
+      console.log("Error", e.target.error.name);
+    }
+
+    request.onsuccess = (function(query) { return function(e) {
+      DF[query] = e.target.result;
+      console.log(query + ", df=" + e.target.result);
+    }})(query_terms[i]);
+  }
 
   var query = query_terms[0];
   console.log("query term[0]: " + query);
@@ -68,7 +136,7 @@ function search(e) {
 
   //console.log("Start time: " + startTime);
 
-  var range = IDBKeyRange.bound(query + "#", query + ".");
+  var range = IDBKeyRange.bound(query + sep, query + ".");
   var cursor = store.openCursor(range);
 
   var cnt = 0;
@@ -77,17 +145,11 @@ function search(e) {
   cursor.onsuccess = function(e) {
     var res = e.target.result;
     if (res) {
-      var parts = res.key.split("#");
+      var parts = res.key.split(sep);
     }
 
     if ( res && parts[0] == query ) {
-      //console.log(parts[0], parts[1], parts[2]);
-
-      if ( parts[1] in results) {
-        results[parts[1]]++;
-      } else {
-        results[parts[1]] = 1;
-      }
+      results[parts[1]] = res.value * Math.log(tweets.length/DF[parts[0]]);;
       cnt++;
       res.continue();
     }
@@ -116,7 +178,7 @@ function search_cont(n, results) {
 
   var startTime = new Date().getTime();
 
-  var range = IDBKeyRange.bound(query + "#", query + ".");
+  var range = IDBKeyRange.bound(query + sep, query + ".");
   var cursor = store.openCursor(range);
 
   var cnt = 0;
@@ -124,14 +186,13 @@ function search_cont(n, results) {
   cursor.onsuccess = function(e) {
     var res = e.target.result;
     if (res) {
-      var parts = res.key.split("#");
+      var parts = res.key.split(sep);
     }
 
     if ( res && parts[0] == query ) {
-      //console.log(parts[0], parts[1], parts[2]);
-
-      if ( parts[1] in results)
-        results[parts[1]]++;
+      if ( parts[1] in results) {
+        results[parts[1]] += res.value * Math.log(tweets.length/DF[parts[0]]);
+      }
 
       cnt++;
       res.continue();
@@ -183,18 +244,20 @@ function index(e) {
 
 function index_tweet(i) {
   gNumTweets++;
-  var tokens = tweets[i].text.split(' ');
+  var tokens = tokenizeToHistogram(tweets[i].text);
 
-  tokens = 
-    tokens
-      .map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
-      .filter(function(x) { return x.length > 0 ? true : false; });
+  console.log(tweets[i].id_str, tokens);
 
-  console.log(tweets[i].id + ' ' + tokens);
+  var tuples = [];
+  for (var key in tokens) tuples.push([key, tokens[key]]);
 
-  index_term(i, 0, tokens);
+  if ( tuples.length == 0 ) {
+    // NOTES: corner case here, won't work if last tweet is empty.
+    index_tweet(i+1)
+  } else {
+    index_term(i, 0, tuples);
+  }
 }
- 
 
 function index_term(i, j, tokens) {
   gNumTokens++;
@@ -202,9 +265,9 @@ function index_term(i, j, tokens) {
   var store = transaction.objectStore("postings");
 
   // Remember to use id_str because of Javascript precision issues.
-  var t = tokens[j] + '#' + tweets[i].id_str + '#' + j;
+  var t = tokens[j][0] + sep + tweets[i].id_str;
 
-  var request = store.add(1, t);
+  var request = store.add(tokens[j][1], t);
  
   request.onerror = function(e) {
     console.log("Error", e.target.error.name);
@@ -229,12 +292,31 @@ function index_term(i, j, tokens) {
   }
 }
 
+function tokenizeToHistogram(s) {
+  var raw = s.split(' ');
+
+//  raw = raw.map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
+//           .filter(function(x) { return x.length > 0 ? true : false; });
+
+  var tokens = {};
+
+  for (var n=0; n<raw.length; n++) {
+    if ( raw[n] in tokens ) {
+      tokens[raw[n]]++;
+    } else {
+      tokens[raw[n]] = 1;
+    }
+  }
+
+  return tokens;
+}
+
 // indexedDB.deleteDatabase('todos')
 </script>
  
 <button id="indexButton">Build Index</button>
 <button id="statsButton">Get Stats</button>
-
+<button id="dfButton">Build DF</button>
 
 <p>
 <input type="text" id="query" placeholder="query">
