@@ -1,8 +1,8 @@
 <!doctype html>
 <html>
 <head>
-<!--script type="text/javascript" src="tweets.js"></script></script-->
-<script type="text/javascript" src="out.js"></script></script>
+<script type="text/javascript" src="tweets.js"></script></script>
+<!--script type="text/javascript" src="test-large.js"></script></script-->
 </head>
  
 <body>
@@ -28,12 +28,12 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   openRequest.onsuccess = function(e) {
-    console.log("running onsuccess");
     db = e.target.result;
 
     document.querySelector("#indexButton").addEventListener("click", index, false);
     document.querySelector("#searchButton").addEventListener("click", search, false);
     document.querySelector("#statsButton").addEventListener("click", stats, false);
+    console.log("Initialization complete, index opened!");
   }
  
   openRequest.onerror = function(e) {
@@ -54,8 +54,13 @@ function stats(e) {
   }
 }
 
+var query_terms;
+
 function search(e) {
-  var query = document.querySelector("#query").value;
+  query_terms = document.querySelector("#query").value.split(" ");
+
+  var query = query_terms[0];
+  console.log("query term[0]: " + query);
   var transaction = db.transaction(["postings"], "readonly");
   var store = transaction.objectStore("postings");
 
@@ -68,7 +73,7 @@ function search(e) {
 
   var cnt = 0;
 
-  var results = [];
+  var results = {};
   cursor.onsuccess = function(e) {
     var res = e.target.result;
     if (res) {
@@ -77,21 +82,94 @@ function search(e) {
 
     if ( res && parts[0] == query ) {
       //console.log(parts[0], parts[1], parts[2]);
-      results.push(parts[1]);
+
+      if ( parts[1] in results) {
+        results[parts[1]]++;
+      } else {
+        results[parts[1]] = 1;
+      }
       cnt++;
       res.continue();
     }
 
     if ( !res || parts[0] != query ) {
       var end = new Date().getTime();
-      //console.log("End time: " + end);
-      console.log(results.length + " hits: " + results);
-      console.log((end-startTime) + "ms");
+      console.log(Object.keys(results).length + " hits in " + (end-startTime) + "ms");
+      //console.log(results);
+
+      if (query_terms.length > 1 ) {
+        search_cont(1, results);     
+      } else {
+        print_results(results, 10);
+      }
     }
   };
 
 }
 
+function search_cont(n, results) {
+  var query = query_terms[n];
+  console.log("query term[" + n + "]: " + query);
+
+  var transaction = db.transaction(["postings"], "readonly");
+  var store = transaction.objectStore("postings");
+
+  var startTime = new Date().getTime();
+
+  var range = IDBKeyRange.bound(query + "#", query + ".");
+  var cursor = store.openCursor(range);
+
+  var cnt = 0;
+
+  cursor.onsuccess = function(e) {
+    var res = e.target.result;
+    if (res) {
+      var parts = res.key.split("#");
+    }
+
+    if ( res && parts[0] == query ) {
+      //console.log(parts[0], parts[1], parts[2]);
+
+      if ( parts[1] in results)
+        results[parts[1]]++;
+
+      cnt++;
+      res.continue();
+    }
+
+    if ( !res || parts[0] != query ) {
+      var end = new Date().getTime();
+      console.log((end-startTime) + "ms");
+      if ( n < query_terms.length-1 ) {
+        search_cont(n+1, results);     
+      } else {
+        print_results(results, 10);
+      }
+    }
+  };
+}
+
+
+// http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
+function print_results(results, k) {
+  var tuples = [];
+
+  for (var key in results) tuples.push([key, results[key]]);
+
+  tuples.sort(function(a, b) {
+    return a[1] > b[1] ? -1 : (a[1] < b[1] ? 1 :
+      a[0] < b[0] ? 1 : -1);
+  });
+
+  for (var i = 0; i < k && i<tuples.length; i++) {
+    var key = tuples[i][0];
+    var value = tuples[i][1];
+
+    console.log(key, value);
+  }
+}
+
+// Indexing code
 
 var gNumTweets = 0;
 var gNumTokens = 0;
@@ -123,12 +201,15 @@ function index_term(i, j, tokens) {
   var transaction = db.transaction(["postings"],"readwrite");
   var store = transaction.objectStore("postings");
 
-  var t = tokens[j] + '#' + tweets[i].id + '#' + j;
+  // Remember to use id_str because of Javascript precision issues.
+  var t = tokens[j] + '#' + tweets[i].id_str + '#' + j;
 
   var request = store.add(1, t);
  
   request.onerror = function(e) {
     console.log("Error", e.target.error.name);
+    // Need better error trapping up this will do for now.
+    index_tweet(i+1)
   }
 
   request.onsuccess = function(e) {
@@ -152,15 +233,13 @@ function index_term(i, j, tokens) {
 </script>
  
 <button id="indexButton">Build Index</button>
-
+<button id="statsButton">Get Stats</button>
 
 
 <p>
-term: <input type="text" id="query" placeholder="query"><br/>
-<button id="searchButton">Get</button>
-
-<p>
-<button id="statsButton">Stats</button>
+<input type="text" id="query" placeholder="query">
+<button id="searchButton">Search</button>
+</p>
 
 </body>
 </html>
