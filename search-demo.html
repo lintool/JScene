@@ -4,8 +4,9 @@
 <script type="text/javascript" src="db.js"></script></script>
 <script type="text/javascript" src="index.js"></script></script>
 
-<script type="text/javascript" src="tweets.js"></script></script>
-<!--script type="text/javascript" src="sample-tweets.js"></script></script-->
+<!--script type="text/javascript" src="sample-p10.js"></script></script-->
+<script type="text/javascript" src="topics.js"></script></script>
+
 </head>
  
 <body>
@@ -90,9 +91,20 @@ function insert_df(i, tuples) {
 
 var query_terms;
 var DF = {};
+var searchStartTime;
 
-function search(e) {
+function search() {
   query_terms = document.querySelector("#query").value.split(" ");
+
+  search_init(function(results) {
+    console.log("Results for: " + query_terms);
+    print_results(results, 10);
+  });
+}
+
+function search_init(callback) {
+  searchStartTime = new Date();
+  DF = {};
 
   for (var i=0; i<query_terms.length; i++) {
     var transaction = db.transaction(["df"],"readonly");
@@ -105,12 +117,15 @@ function search(e) {
 
     request.onsuccess = (function(query) { return function(e) {
       DF[query] = e.target.result;
-      console.log(query + ", df=" + e.target.result);
+      //console.log(query + ", df=" + e.target.result);
     }})(query_terms[i]);
   }
 
+  // Note there's a race condition here: we're depending on the stat
+  // requests completing before we actual perform query evaluation...
+
   var query = query_terms[0];
-  console.log("query term[0]: " + query);
+  //console.log("query term[0]: " + query);
   var transaction = db.transaction(["postings"], "readonly");
   var store = transaction.objectStore("postings");
 
@@ -131,29 +146,30 @@ function search(e) {
     }
 
     if ( res && parts[0] == query ) {
-      results[parts[1]] = res.value * Math.log(tweets.length/DF[parts[0]]);;
+      // tweets.length is hardcoded
+      results[parts[1]] = res.value * Math.log(1128929/DF[parts[0]]);;
       cnt++;
       res.continue();
     }
 
     if ( !res || parts[0] != query ) {
       var end = new Date().getTime();
-      console.log(Object.keys(results).length + " hits in " + (end-startTime) + "ms");
+      //console.log(Object.keys(results).length + " hits in " + (end-startTime) + "ms");
       //console.log(results);
 
       if (query_terms.length > 1 ) {
-        search_cont(1, results);     
+        search_cont(1, results, callback);
       } else {
-        print_results(results, 10);
+        callback(results);
       }
     }
   };
 
 }
 
-function search_cont(n, results) {
+function search_cont(n, results, callback) {
   var query = query_terms[n];
-  console.log("query term[" + n + "]: " + query);
+  //console.log("query term[" + n + "]: " + query);
 
   var transaction = db.transaction(["postings"], "readonly");
   var store = transaction.objectStore("postings");
@@ -173,7 +189,8 @@ function search_cont(n, results) {
 
     if ( res && parts[0] == query ) {
       if ( parts[1] in results) {
-        results[parts[1]] += res.value * Math.log(tweets.length/DF[parts[0]]);
+        // tweets.length is hardcoded
+        results[parts[1]] += res.value * Math.log(1128929/DF[parts[0]]);
       }
 
       cnt++;
@@ -182,11 +199,11 @@ function search_cont(n, results) {
 
     if ( !res || parts[0] != query ) {
       var end = new Date().getTime();
-      console.log((end-startTime) + "ms");
+      //console.log((end-startTime) + "ms");
       if ( n < query_terms.length-1 ) {
-        search_cont(n+1, results);     
+        search_cont(n+1, results, callback);
       } else {
-        print_results(results, 10);
+        callback(results);
       }
     }
   };
@@ -211,6 +228,23 @@ function print_results(results, k) {
     console.log(key, value);
   }
 }
+
+function runTopics() {
+  runTopics_helper(0);
+}
+
+function runTopics_helper(i) {
+  query_terms = topics[i].text.split(" ");
+  search_init(function(results) {
+    console.log(query_terms + ": " + (new Date().getTime() - searchStartTime) + "ms");
+    //print_results(results, 20);
+
+    if (i < topics.length - 1) {
+      runTopics_helper(i+1);
+    }
+  });
+}
+
 </script>
  
 <button id="indexButton">Build Index</button>
@@ -222,7 +256,10 @@ function print_results(results, k) {
 
 <p>
 <input type="text" id="query" placeholder="query">
-<button id="searchButton">Search</button>
+<button id="searchButton">Search</button></p>
+
+<p>
+<button id="runTopics" onclick="runTopics()">Run Topics</button>
 </p>
 
 </body>

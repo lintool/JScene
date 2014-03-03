@@ -9,7 +9,7 @@ function index(e) {
 }
 
 function index_tweet(i) {
-  if ( i % 100 == 0 ) {
+  if ( i % 1000 == 0 ) {
     console.log("Indexed " + i + " documents: Elapsed time = " + 
       (new Date().getTime()-gIndexStartTime) + "ms");
   }
