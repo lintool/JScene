@@ -1,64 +1,43 @@
 <!doctype html>
 <html>
 <head>
-<!--script type="text/javascript" src="tweets.js"></script></script-->
-<script type="text/javascript" src="sample-tweets.js"></script></script>
+<script type="text/javascript" src="db.js"></script></script>
+<script type="text/javascript" src="index.js"></script></script>
+
+<script type="text/javascript" src="tweets.js"></script></script>
+<!--script type="text/javascript" src="sample-tweets.js"></script></script-->
 </head>
  
 <body>
  
 <script>
-var sep = "+";
-var db;
- 
-function indexedDBOk() {
- return "indexedDB" in window;
-}
- 
-document.addEventListener("DOMContentLoaded", function() {
-  if (!indexedDBOk) return;
-
-  //indexedDB.deleteDatabase("index");
-
-  var openRequest = indexedDB.open("index", 1);
-
-  openRequest.onupgradeneeded = function(e) {
-    var thisDB = e.target.result;
-
-    if (!thisDB.objectStoreNames.contains("postings")) {
-      thisDB.createObjectStore("postings");
-    }
-
-    if (!thisDB.objectStoreNames.contains("df")) {
-      thisDB.createObjectStore("df");
-    }
-  }
-
-  openRequest.onsuccess = function(e) {
-    db = e.target.result;
-
-    document.querySelector("#indexButton").addEventListener("click", index, false);
-    document.querySelector("#searchButton").addEventListener("click", search, false);
-    document.querySelector("#statsButton").addEventListener("click", stats, false);
-    document.querySelector("#dfButton").addEventListener("click", buildDf, false);
-
-    console.log("Initialization complete!");
-  }
- 
-  openRequest.onerror = function(e) {
-    // Do something for the error
-  }
- 
-}, false);
 
 function stats(e) {
-  var query = document.querySelector("#query").value;
-  var transaction = db.transaction(["postings"], "readonly");
+  var request = db.transaction(["postings"], "readonly")
+    .objectStore("postings")
+    .count();
+
+  request.onsuccess = function(e) {
+    console.log("Total number of entries: " + e.target.result);
+    return;
+  }
+
+/*  var transaction = db.transaction(["postings"], "readonly");
   var store = transaction.objectStore("postings");
 
   var request = store.count();
   request.onsuccess = function(e) {
     console.log("Total number of entries: " + e.target.result);
+    return;
+  }
+*/
+
+  var transaction = db.transaction(["df"], "readonly");
+  var store = transaction.objectStore("df");
+
+  var request = store.count();
+  request.onsuccess = function(e) {
+    console.log("Total number of terms: " + e.target.result);
     return;
   }
 }
@@ -68,6 +47,8 @@ function stats(e) {
 function buildDf(e) {
   var DF = {};
   for (var i=0; i<tweets.length; i++) {
+    if (i % 100 == 0 ) console.log("Processed " + i + " documents.");
+
     var tokens = tokenizeToHistogram(tweets[i].text);
     for (var t in tokens) {
       if (t in DF) {
@@ -95,10 +76,11 @@ function insert_df(i, tuples) {
   }
 
   request.onsuccess = function(e) {
+    if (i % 100 == 0 ) console.log("Inserted " + i + " terms.");
     if (i < tuples.length-1) {
       insert_df(i+1, tuples);
     } else {
-      console.log("inserted " + tuples.length + " dfs");
+      console.log("Done! Inserted " + tuples.length + " terms");
     }
   }
 }
@@ -229,94 +211,14 @@ function print_results(results, k) {
     console.log(key, value);
   }
 }
-
-// Indexing code
-
-var gNumTweets = 0;
-var gNumTokens = 0;
-
-var gIndexStartTime;
-
-function index(e) {
-  gIndexStartTime = new Date().getTime();
-  index_tweet(0);
-}
-
-function index_tweet(i) {
-  gNumTweets++;
-  var tokens = tokenizeToHistogram(tweets[i].text);
-
-  console.log(tweets[i].id_str, tokens);
-
-  var tuples = [];
-  for (var key in tokens) tuples.push([key, tokens[key]]);
-
-  if ( tuples.length == 0 ) {
-    // NOTES: corner case here, won't work if last tweet is empty.
-    index_tweet(i+1)
-  } else {
-    index_term(i, 0, tuples);
-  }
-}
-
-function index_term(i, j, tokens) {
-  gNumTokens++;
-  var transaction = db.transaction(["postings"],"readwrite");
-  var store = transaction.objectStore("postings");
-
-  // Remember to use id_str because of Javascript precision issues.
-  var t = tokens[j][0] + sep + tweets[i].id_str;
-
-  var request = store.add(tokens[j][1], t);
- 
-  request.onerror = function(e) {
-    console.log("Error", e.target.error.name);
-    // Need better error trapping up this will do for now.
-    index_tweet(i+1)
-  }
-
-  request.onsuccess = function(e) {
-    //console.log("ok: " +  t);
-    if (j < tokens.length-1) {
-      index_term(i, j+1, tokens);
-    } else if (i < tweets.length-1) {
-      index_tweet(i+1)
-    } else {
-      var end = new Date().getTime();
-      console.log("Number of tweets indexed: " + gNumTweets);
-      console.log("Number of tokens indexed: " + gNumTokens);
-      //console.log("Start time: " + gIndexStartTime);
-      //console.log("End time: " + end);
-      console.log("Indexing time: " + (end - gIndexStartTime) + "ms");
-    }
-  }
-}
-
-function tokenizeToHistogram(s) {
-  var raw = s.split(' ');
-
-//  raw = raw.map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
-//           .filter(function(x) { return x.length > 0 ? true : false; });
-
-  var tokens = {};
-
-  for (var n=0; n<raw.length; n++) {
-    if ( raw[n] in tokens ) {
-      tokens[raw[n]]++;
-    } else {
-      tokens[raw[n]] = 1;
-    }
-  }
-
-  return tokens;
-}
-
-// indexedDB.deleteDatabase('todos')
 </script>
  
 <button id="indexButton">Build Index</button>
-<button id="statsButton">Get Stats</button>
 <button id="dfButton">Build DF</button>
+
+<button id="statsButton">Get Stats</button>
+
+<hr/>
 
 <p>
 <input type="text" id="query" placeholder="query">
