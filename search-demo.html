@@ -17,30 +17,18 @@
 function statsButton(e) {
   console.log("Getting stats...");
 
-  var request = db.transaction(["postings"], "readonly")
-    .objectStore("postings")
-    .count();
+  var request1 = db.transaction(["postings"], "readonly")
+                   .objectStore("postings").count();
 
-  request.onsuccess = function(e) {
+  request1.onsuccess = function(e) {
     console.log("Total number of entries: " + e.target.result);
     return;
   }
 
-/*  var transaction = db.transaction(["postings"], "readonly");
-  var store = transaction.objectStore("postings");
+  var request2 = db.transaction(["df"], "readonly")
+                   .objectStore("df").count();
 
-  var request = store.count();
-  request.onsuccess = function(e) {
-    console.log("Total number of entries: " + e.target.result);
-    return;
-  }
-*/
-
-  var transaction = db.transaction(["df"], "readonly");
-  var store = transaction.objectStore("df");
-
-  var request = store.count();
-  request.onsuccess = function(e) {
+  request2.onsuccess = function(e) {
     console.log("Total number of terms: " + e.target.result);
     return;
   }
@@ -51,7 +39,7 @@ function statsButton(e) {
 function buildDf(e) {
   var DF = {};
   for (var i=0; i<tweets.length; i++) {
-    if (i % 100 == 0 ) console.log("Processed " + i + " documents.");
+    if (i % 1000 == 0 ) console.log("Processed " + i + " documents.");
 
     var tokens = tokenizeToHistogram(tweets[i].text);
     for (var t in tokens) {
@@ -114,9 +102,9 @@ searcher.setNumDocs(1128929);
 // Querying
 
 function searchButton() {
-  query_terms = document.querySelector("#query").value.split(" ");
+  var q = document.querySelector("#query").value.split(" ");
 
-  searcher.search(query_terms, function(results) {
+  searcher.search(q, function(results) {
     console.log("Results for: " + query_terms);
     print_results(results, 10);
   });
@@ -132,7 +120,7 @@ function runTopics_helper(i) {
   query_terms = topics[i].text.split(" ");
   searcher.search(query_terms, function(results, t) {
     console.log(query_terms + ": " + (new Date().getTime() - t) + "ms");
-    //print_results(results, 20);
+    //print_results(results, 10);
 
     if (i < topics.length - 1) {
       runTopics_helper(i+1);
