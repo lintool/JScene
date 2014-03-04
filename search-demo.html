@@ -3,6 +3,7 @@
 <head>
 <script type="text/javascript" src="db.js"></script></script>
 <script type="text/javascript" src="index.js"></script></script>
+<script type="text/javascript" src="search.js"></script></script>
 
 <!--script type="text/javascript" src="sample-p10.js"></script></script-->
 <script type="text/javascript" src="topics.js"></script></script>
@@ -13,7 +14,9 @@
  
 <script>
 
-function stats(e) {
+function statsButton(e) {
+  console.log("Getting stats...");
+
   var request = db.transaction(["postings"], "readonly")
     .objectStore("postings")
     .count();
@@ -86,130 +89,6 @@ function insert_df(i, tuples) {
   }
 }
 
-
-// Querying
-
-var query_terms;
-var DF = {};
-var searchStartTime;
-
-function search() {
-  query_terms = document.querySelector("#query").value.split(" ");
-
-  search_init(function(results) {
-    console.log("Results for: " + query_terms);
-    print_results(results, 10);
-  });
-}
-
-function search_init(callback) {
-  searchStartTime = new Date();
-  DF = {};
-
-  for (var i=0; i<query_terms.length; i++) {
-    var transaction = db.transaction(["df"],"readonly");
-    var store = transaction.objectStore("df");
-    var request = store.get(query_terms[i]);
- 
-    request.onerror = function(e) {
-      console.log("Error", e.target.error.name);
-    }
-
-    request.onsuccess = (function(query) { return function(e) {
-      DF[query] = e.target.result;
-      //console.log(query + ", df=" + e.target.result);
-    }})(query_terms[i]);
-  }
-
-  // Note there's a race condition here: we're depending on the stat
-  // requests completing before we actual perform query evaluation...
-
-  var query = query_terms[0];
-  //console.log("query term[0]: " + query);
-  var transaction = db.transaction(["postings"], "readonly");
-  var store = transaction.objectStore("postings");
-
-  var startTime = new Date().getTime();
-
-  //console.log("Start time: " + startTime);
-
-  var range = IDBKeyRange.bound(query + sep, query + ".");
-  var cursor = store.openCursor(range);
-
-  var cnt = 0;
-
-  var results = {};
-  cursor.onsuccess = function(e) {
-    var res = e.target.result;
-    if (res) {
-      var parts = res.key.split(sep);
-    }
-
-    if ( res && parts[0] == query ) {
-      // tweets.length is hardcoded
-      results[parts[1]] = res.value * Math.log(1128929/DF[parts[0]]);;
-      cnt++;
-      res.continue();
-    }
-
-    if ( !res || parts[0] != query ) {
-      var end = new Date().getTime();
-      //console.log(Object.keys(results).length + " hits in " + (end-startTime) + "ms");
-      //console.log(results);
-
-      if (query_terms.length > 1 ) {
-        search_cont(1, results, callback);
-      } else {
-        callback(results);
-      }
-    }
-  };
-
-}
-
-function search_cont(n, results, callback) {
-  var query = query_terms[n];
-  //console.log("query term[" + n + "]: " + query);
-
-  var transaction = db.transaction(["postings"], "readonly");
-  var store = transaction.objectStore("postings");
-
-  var startTime = new Date().getTime();
-
-  var range = IDBKeyRange.bound(query + sep, query + ".");
-  var cursor = store.openCursor(range);
-
-  var cnt = 0;
-
-  cursor.onsuccess = function(e) {
-    var res = e.target.result;
-    if (res) {
-      var parts = res.key.split(sep);
-    }
-
-    if ( res && parts[0] == query ) {
-      if ( parts[1] in results) {
-        // tweets.length is hardcoded
-        results[parts[1]] += res.value * Math.log(1128929/DF[parts[0]]);
-      }
-
-      cnt++;
-      res.continue();
-    }
-
-    if ( !res || parts[0] != query ) {
-      var end = new Date().getTime();
-      //console.log((end-startTime) + "ms");
-      if ( n < query_terms.length-1 ) {
-        search_cont(n+1, results, callback);
-      } else {
-        callback(results);
-      }
-    }
-  };
-}
-
-
 // http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
 function print_results(results, k) {
   var tuples = [];
@@ -229,6 +108,20 @@ function print_results(results, k) {
   }
 }
 
+
+searcher.setNumDocs(1128929);
+
+// Querying
+
+function searchButton() {
+  query_terms = document.querySelector("#query").value.split(" ");
+
+  searcher.search(query_terms, function(results) {
+    console.log("Results for: " + query_terms);
+    print_results(results, 10);
+  });
+}
+
 var topicsStart;
 function runTopics() {
   topicsStart = new Date().getTime();
@@ -237,8 +130,8 @@ function runTopics() {
 
 function runTopics_helper(i) {
   query_terms = topics[i].text.split(" ");
-  search_init(function(results) {
-    console.log(query_terms + ": " + (new Date().getTime() - searchStartTime) + "ms");
+  searcher.search(query_terms, function(results, t) {
+    console.log(query_terms + ": " + (new Date().getTime() - t) + "ms");
     //print_results(results, 20);
 
     if (i < topics.length - 1) {
@@ -256,13 +149,13 @@ function runTopics_helper(i) {
 <button id="indexButton">Build Index</button>
 <button id="dfButton">Build DF</button>
 
-<button id="statsButton">Get Stats</button>
+<button id="statsButton" onclick="statsButton()">Get Stats</button>
 
 <hr/>
 
 <p>
 <input type="text" id="query" placeholder="query">
-<button id="searchButton">Search</button></p>
+<button id="searchButton" onclick="searchButton()">Search</button></p>
 
 <p>
 <button id="runTopics" onclick="runTopics()">Run Topics</button>

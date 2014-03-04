@@ -28,15 +28,12 @@ document.addEventListener("DOMContentLoaded", function() {
     db = e.target.result;
 
     document.querySelector("#indexButton").addEventListener("click", index, false);
-    document.querySelector("#searchButton").addEventListener("click", search, false);
-    document.querySelector("#statsButton").addEventListener("click", stats, false);
     document.querySelector("#dfButton").addEventListener("click", buildDf, false);
 
     console.log("Initialization complete!");
   }
  
   openRequest.onerror = function(e) {
-    // Do something for the error
+    console.log("Initialization error!");
   }
- 
 }, false);
