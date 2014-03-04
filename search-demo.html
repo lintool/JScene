@@ -229,7 +229,9 @@ function print_results(results, k) {
   }
 }
 
+var topicsStart;
 function runTopics() {
+  topicsStart = new Date().getTime();
   runTopics_helper(0);
 }
 
@@ -241,6 +243,10 @@ function runTopics_helper(i) {
 
     if (i < topics.length - 1) {
       runTopics_helper(i+1);
+    } else {
+      var e = new Date().getTime();
+      console.log((i+1) + " topics, total time: " + (e - topicsStart) + "ms");
+      console.log("average query latency = " + (e - topicsStart)/(i+1) + "ms");
     }
   });
 }
