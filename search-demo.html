@@ -6,6 +6,7 @@
 <script type="text/javascript" src="search.js"></script></script>
 
 <!--script type="text/javascript" src="sample-p10.js"></script></script-->
+<script type="text/javascript" src="lintool-tweets.js"></script></script>
 <script type="text/javascript" src="topics.js"></script></script>
 
 </head>
@@ -34,49 +35,6 @@ function statsButton(e) {
   }
 }
 
-// IDF
-
-function buildDf(e) {
-  var DF = {};
-  for (var i=0; i<tweets.length; i++) {
-    if (i % 1000 == 0 ) console.log("Processed " + i + " documents.");
-
-    var tokens = tokenizeToHistogram(tweets[i].text);
-    for (var t in tokens) {
-      if (t in DF) {
-        DF[t]++;
-      } else {
-        DF[t] = 1;
-      }
-    }
-  }
-
-  var tuples = [];
-  for (var key in DF) tuples.push([key, DF[key]]);
-
-  insert_df(0, tuples);
-}
-
-function insert_df(i, tuples) {
-  var transaction = db.transaction(["df"],"readwrite");
-  var store = transaction.objectStore("df");
-  var request = store.add(tuples[i][1], tuples[i][0]);
- 
-  //console.log(tuples[i][1], tuples[i][0]);
-  request.onerror = function(e) {
-    console.log("Error", e.target.error.name);
-  }
-
-  request.onsuccess = function(e) {
-    if (i % 100 == 0 ) console.log("Inserted " + i + " terms.");
-    if (i < tuples.length-1) {
-      insert_df(i+1, tuples);
-    } else {
-      console.log("Done! Inserted " + tuples.length + " terms");
-    }
-  }
-}
-
 // http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
 function print_results(results, k) {
   var tuples = [];
@@ -96,6 +54,15 @@ function print_results(results, k) {
   }
 }
 
+function indexButton() {
+  console.log("Starting to index...");
+  indexer.index(tweets);
+}
+
+function dfButton() {
+  console.log("Starting to build df table...");
+  indexer.buildDfTable(tweets);
+}
 
 searcher.setNumDocs(1128929);
 
@@ -105,7 +72,7 @@ function searchButton() {
   var q = document.querySelector("#query").value.split(" ");
 
   searcher.search(q, function(results) {
-    console.log("Results for: " + query_terms);
+    console.log("Results for: " + q);
     print_results(results, 10);
   });
 }
@@ -134,10 +101,10 @@ function runTopics_helper(i) {
 
 </script>
  
-<button id="indexButton">Build Index</button>
-<button id="dfButton">Build DF</button>
+<button id="indexButton" onclick="indexButton()">Build Index</button>
+<button id="dfButton" onclick="dfButton()">Build DF Table</button>
 
-<button id="statsButton" onclick="statsButton()">Get Stats</button>
+<button id="statsButton" onclick="statsButton()">Get Index Stats</button>
 
 <hr/>
 

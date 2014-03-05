@@ -26,10 +26,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
   openRequest.onsuccess = function(e) {
     db = e.target.result;
-
-    document.querySelector("#indexButton").addEventListener("click", index, false);
-    document.querySelector("#dfButton").addEventListener("click", buildDf, false);
-
     console.log("Initialization complete!");
   }
  
