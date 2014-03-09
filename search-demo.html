@@ -6,7 +6,8 @@
 <script type="text/javascript" src="search.js"></script></script>
 
 <!--script type="text/javascript" src="sample-p10.js"></script></script-->
-<script type="text/javascript" src="lintool-tweets.js"></script></script>
+<!--script type="text/javascript" src="lintool-tweets.js"></script></script-->
+<!--script type="text/javascript" src="topics-random.js"></script></script-->
 <script type="text/javascript" src="topics.js"></script></script>
 
 </head>
@@ -99,12 +100,35 @@ function runTopics_helper(i) {
   });
 }
 
+var sampled = {};
+function sampleButton() {
+  var cnt = 0;
+  var cursor = db.transaction(["df"], "readonly").objectStore("df")
+                 .openCursor();
+
+  cursor.onsuccess = function(e) {
+    var res = e.target.result;
+
+    if (res) {
+      if (res.value > 10 && res.key.match("^[#@A-Za-z]+$") && Math.random() < 0.01 ) {
+        cnt++;
+        console.log(res.key + " " + res.value);
+        sampled[res.key] = res.value;
+      }
+      res.continue();
+    } else {
+      console.log("selected terms: " + cnt);
+    }
+  };
+}
+
 </script>
  
 <button id="indexButton" onclick="indexButton()">Build Index</button>
 <button id="dfButton" onclick="dfButton()">Build DF Table</button>
 
 <button id="statsButton" onclick="statsButton()">Get Index Stats</button>
+<button id="sampleButton" onclick="sampleButton()">Sample Terms</button>
 
 <hr/>
 
