@@ -1,14 +1,15 @@
 <!doctype html>
 <html>
 <head>
-<script type="text/javascript" src="db.js"></script></script>
-<script type="text/javascript" src="index.js"></script></script>
-<script type="text/javascript" src="search.js"></script></script>
+<script type="text/javascript" src="db.js"></script>
+<script type="text/javascript" src="index.js"></script>
+<script type="text/javascript" src="search.js"></script>
 
 <!--script type="text/javascript" src="sample-p10.js"></script></script-->
 <!--script type="text/javascript" src="lintool-tweets.js"></script></script-->
+
 <!--script type="text/javascript" src="topics-random.js"></script></script-->
-<script type="text/javascript" src="topics.js"></script></script>
+<script type="text/javascript" src="topics.js"></script>
 
 </head>
  
@@ -24,7 +25,6 @@ function statsButton(e) {
 
   request1.onsuccess = function(e) {
     console.log("Total number of entries: " + e.target.result);
-    return;
   }
 
   var request2 = db.transaction(["df"], "readonly")
@@ -32,12 +32,11 @@ function statsButton(e) {
 
   request2.onsuccess = function(e) {
     console.log("Total number of terms: " + e.target.result);
-    return;
   }
 }
 
 // http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
-function print_results(results, k) {
+function logResults(results, k) {
   var tuples = [];
 
   for (var key in results) tuples.push([key, results[key]]);
@@ -48,10 +47,7 @@ function print_results(results, k) {
   });
 
   for (var i = 0; i < k && i<tuples.length; i++) {
-    var key = tuples[i][0];
-    var value = tuples[i][1];
-
-    console.log(key, value);
+    console.log(tuples[i][0], tuples[i][1]);
   }
 }
 
@@ -74,7 +70,7 @@ function searchButton() {
 
   searcher.search(q, function(results) {
     console.log("Results for: " + q);
-    print_results(results, 10);
+    logResults(results, 10);
   });
 }
 

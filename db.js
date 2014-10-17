@@ -1,18 +1,18 @@
 var sep = "+";
 var db;
- 
+
 function indexedDBOk() {
- return "indexedDB" in window;
+  return "indexedDB" in window;
 }
- 
-document.addEventListener("DOMContentLoaded", function() {
+
+document.addEventListener("DOMContentLoaded", function () {
   if (!indexedDBOk) return;
 
   //indexedDB.deleteDatabase("index");
 
   var openRequest = indexedDB.open("index", 1);
 
-  openRequest.onupgradeneeded = function(e) {
+  openRequest.onupgradeneeded = function (e) {
     var thisDB = e.target.result;
 
     if (!thisDB.objectStoreNames.contains("postings")) {
@@ -24,12 +24,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  openRequest.onsuccess = function(e) {
+  openRequest.onsuccess = function (e) {
     db = e.target.result;
     console.log("Initialization complete!");
   }
- 
-  openRequest.onerror = function(e) {
+
+  openRequest.onerror = function (e) {
     console.log("Initialization error!");
   }
 }, false);
