@@ -17,153 +17,9 @@
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
 <![endif]-->
 
-<!-- https://dev.twitter.com/web/javascript/loading -->
-<!-- Check out this handy way of embeddin tweets: https://dev.twitter.com/web/embedded-tweets/javascript-create -->
-<script>
-twttr = (function(d, s, id) {
-  var js, fjs = d.getElementsByTagName(s)[0],
-    t = window.twttr || {};
-  if (d.getElementById(id)) return t;
-  js = d.createElement(s);
-  js.id = id;
-  js.src = "https://platform.twitter.com/widgets.js";
-  fjs.parentNode.insertBefore(js, fjs);
-
-  t._e = [];
-  t.ready = function(f) {
-    t._e.push(f);
-  };
-
-  return t;
-}(document, "script", "twitter-wjs"));
-</script>
-
-<script type="text/javascript" src="db.js"></script>
-<script type="text/javascript" src="index.js"></script>
-<script type="text/javascript" src="search.js"></script>
-
-<script type="text/javascript" src="tweets.js"></script></script>
-
-<script>
-
-function statsButton(e) {
-  console.log("Getting stats...");
-
-  var request1 = db.transaction(["postings"], "readonly")
-                   .objectStore("postings").count();
-
-  request1.onsuccess = function(e) {
-    console.log("Total number of entries: " + e.target.result);
-  }
-
-  var request2 = db.transaction(["df"], "readonly")
-                   .objectStore("df").count();
-
-  request2.onsuccess = function(e) {
-    console.log("Total number of terms: " + e.target.result);
-  }
-}
-
-// http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
-function logResults(results, k) {
-  var tuples = [];
-
-  for (var key in results) tuples.push([key, results[key]]);
-
-  tuples.sort(function(a, b) {
-    return a[1] > b[1] ? -1 : (a[1] < b[1] ? 1 :
-      a[0] < b[0] ? 1 : -1);
-  });
-
-  document.getElementById('results').innerHTML = "";
-
-  for (var i = 0; i < k && i<tuples.length; i++) {
-    console.log(tuples[i][0], tuples[i][1]);
-
-twttr.widgets.createTweet(
-  tuples[i][0],
-  document.getElementById('results'),
-  {}
-);
-
-  }
-}
-
-function indexButton() {
-  console.log("Starting to index...");
-  indexer.index(tweets);
-}
-
-function dfButton() {
-  console.log("Starting to build df table...");
-  indexer.buildDfTable(tweets);
-}
-
-searcher.setNumDocs(1128929);
-
-// Querying
-
-function searchButton() {
-  var q = document.querySelector("#query").value.split(" ");
-
-  q = q.map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
-           .filter(function(x) { return x.length > 0 ? true : false; });
-
-  searcher.search(q, function(results) {
-    console.log("Results for: " + q);
-    logResults(results, 10);
-  });
-}
-
-var topicsStart;
-function runTopics() {
-  topicsStart = new Date().getTime();
-  runTopics_helper(0);
-}
-
-function runTopics_helper(i) {
-  query_terms = topics[i].text.split(" ");
-  searcher.search(query_terms, function(results, t) {
-    console.log(query_terms + ": " + (new Date().getTime() - t) + "ms");
-    //print_results(results, 10);
-
-    if (i < topics.length - 1) {
-      runTopics_helper(i+1);
-    } else {
-      var e = new Date().getTime();
-      console.log((i+1) + " topics, total time: " + (e - topicsStart) + "ms");
-      console.log("average query latency = " + (e - topicsStart)/(i+1) + "ms");
-    }
-  });
-}
-
-var sampled = {};
-function sampleButton() {
-  var cnt = 0;
-  var cursor = db.transaction(["df"], "readonly").objectStore("df")
-                 .openCursor();
-
-  cursor.onsuccess = function(e) {
-    var res = e.target.result;
-
-    if (res) {
-      if (res.value > 10 && res.key.match("^[#@A-Za-z]+$") && Math.random() < 0.01 ) {
-        cnt++;
-        console.log(res.key + " " + res.value);
-        sampled[res.key] = res.value;
-      }
-      res.continue();
-    } else {
-      console.log("selected terms: " + cnt);
-    }
-  };
-}
-
-</script>
-
 <style>
 body {
-  padding-top: 75px;
+  padding-top: 50px;
 }
 </style>
 
@@ -179,35 +35,43 @@ body {
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">JScene</a>
+          <a class="navbar-brand" href="./index.html">JScene</a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li class="active"><a href="#">Home</a></li>
+            <li class="active"><a href="./index.html">Home</a></li>
+            <li><a href="./indexing-demo.html">Indexing</a></li>
+            <li><a href="./search-demo.html">Search</a></li>
           </ul>
         </div><!--/.nav-collapse -->
       </div>
     </nav>
 
 <div class="container"> 
-<button id="indexButton" onclick="indexButton()">Build Index</button>
-<button id="dfButton" onclick="dfButton()">Build DF Table</button>
 
-<button id="statsButton" onclick="statsButton()">Get Index Stats</button>
-<button id="sampleButton" onclick="sampleButton()">Sample Terms</button>
-
-<hr/>
+<div class="page-header">
+<h1>JScene</h1>
+<p class="lead">A "proof of concept" in-browser JavaScript-based search engine</p>
 </div>
 
-<div class="container" id="search"> 
+<p>JavaScript engines inside modern web browsers are capable of
+running sophisticated multi-player games, rendering impressive 3D
+scenes, and supporting complex, interactive visualizations. Can this
+processing power be harnessed for information retrieval?</p>
 
-<p>
-<input type="text" id="query" placeholder="query">
-<button id="searchButton" onclick="searchButton()">Search</button></p>
+<p>JScene (pronounced Jay-Scene, rhymes with Lucene) explores the
+feasibility of building a JavaScript search engine that runs
+completely self-contained on the client side within the
+browser&mdash;this includes building the inverted index, gathering
+terms statistics for scoring, and performing query evaluation. The
+design takes advantage of the IndexDB API, which is implemented by the
+LevelDB key-value store inside Google's Chrome browser.</p>
 
-<!--p><button id="runTopics" onclick="runTopics()">Run Topics</button></p -->
-
-<div id="results"></div>
+<p>Experiments show that although the performance of the JavaScript
+prototype falls far short of the open-source Lucene search engine, it
+is sufficiently responsive for interactive applications.  This
+feasibility demonstration opens the door to interesting applications
+and architectures.</p>
 
 </div>
 

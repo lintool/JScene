@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+<title>JScene Demo</title>
+<!-- Bootstrap -->
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="bootstrap/bootstrap.min.css">
+
+<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+<![endif]-->
+
+<!-- https://dev.twitter.com/web/javascript/loading -->
+<!-- Check out this handy way of embeddin tweets: https://dev.twitter.com/web/embedded-tweets/javascript-create -->
+<script>
+twttr = (function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0],
+    t = window.twttr || {};
+  if (d.getElementById(id)) return t;
+  js = d.createElement(s);
+  js.id = id;
+  js.src = "https://platform.twitter.com/widgets.js";
+  fjs.parentNode.insertBefore(js, fjs);
+
+  t._e = [];
+  t.ready = function(f) {
+    t._e.push(f);
+  };
+
+  return t;
+}(document, "script", "twitter-wjs"));
+</script>
+
+<script type="text/javascript" src="db.js"></script>
+<script type="text/javascript" src="search.js"></script>
+
+<script>
+
+// http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
+function logResults(results, k) {
+  var tuples = [];
+
+  for (var key in results) tuples.push([key, results[key]]);
+
+  tuples.sort(function(a, b) {
+    return a[1] > b[1] ? -1 : (a[1] < b[1] ? 1 :
+      a[0] < b[0] ? 1 : -1);
+  });
+
+  document.getElementById('results').innerHTML = "";
+
+  for (var i = 0; i < k && i<tuples.length; i++) {
+    console.log(tuples[i][0], tuples[i][1]);
+
+twttr.widgets.createTweet(
+  tuples[i][0],
+  document.getElementById('results'),
+  {}
+);
+
+  }
+}
+
+searcher.setNumDocs(1128929);
+
+// Querying
+
+function searchButton() {
+  var q = document.querySelector("#query").value.split(" ");
+
+  q = q.map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
+           .filter(function(x) { return x.length > 0 ? true : false; });
+
+  searcher.search(q, function(results) {
+    console.log("Results for: " + q);
+    logResults(results, 10);
+  });
+}
+
+var topicsStart;
+function runTopics() {
+  topicsStart = new Date().getTime();
+  runTopics_helper(0);
+}
+
+function runTopics_helper(i) {
+  query_terms = topics[i].text.split(" ");
+  searcher.search(query_terms, function(results, t) {
+    console.log(query_terms + ": " + (new Date().getTime() - t) + "ms");
+    //print_results(results, 10);
+
+    if (i < topics.length - 1) {
+      runTopics_helper(i+1);
+    } else {
+      var e = new Date().getTime();
+      console.log((i+1) + " topics, total time: " + (e - topicsStart) + "ms");
+      console.log("average query latency = " + (e - topicsStart)/(i+1) + "ms");
+    }
+  });
+}
+
+var sampled = {};
+function sampleButton() {
+  var cnt = 0;
+  var cursor = db.transaction(["df"], "readonly").objectStore("df")
+                 .openCursor();
+
+  cursor.onsuccess = function(e) {
+    var res = e.target.result;
+
+    if (res) {
+      if (res.value > 10 && res.key.match("^[#@A-Za-z]+$") && Math.random() < 0.01 ) {
+        cnt++;
+        console.log(res.key + " " + res.value);
+        sampled[res.key] = res.value;
+      }
+      res.continue();
+    } else {
+      console.log("selected terms: " + cnt);
+    }
+  };
+}
+
+</script>
+
+<style>
+body {
+  padding-top: 50px;
+}
+</style>
+
+</head>
+<body>
+
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="./index.html">JScene</a>
+        </div>
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="./index.html">Home</a></li>
+            <li><a href="./indexing-demo.html">Indexing</a></li>
+            <li class="active"><a href="./search-demo.html">Search</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+
+<div class="container"> 
+
+<div class="page-header">
+<h1>JScene <small>Search Demo</small></h1>
+</div>
+
+<p>The following demo searches my personal tweet archive (1916 tweets through August 5, 2015):</p>
+
+<input type="text" id="query" placeholder="query">
+<button id="searchButton" onclick="searchButton()">Search</button></p>
+
+<!--p><button id="runTopics" onclick="runTopics()">Run Topics</button></p -->
+
+<div id="results"></div>
+
+</div>
+
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="bootstrap/bootstrap.min.js"></script>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="bootstrap/ie10-viewport-bug-workaround.js"></script>
+
+</body>
+</html>
+ 
+
+
