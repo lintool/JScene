@@ -1,20 +1,35 @@
 <!doctype html>
 <html>
 <head>
+
+<!-- https://dev.twitter.com/web/javascript/loading -->
+<!-- Check out this handy way of embeddin tweets: https://dev.twitter.com/web/embedded-tweets/javascript-create -->
+<script>
+twttr = (function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0],
+    t = window.twttr || {};
+  if (d.getElementById(id)) return t;
+  js = d.createElement(s);
+  js.id = id;
+  js.src = "https://platform.twitter.com/widgets.js";
+  fjs.parentNode.insertBefore(js, fjs);
+
+  t._e = [];
+  t.ready = function(f) {
+    t._e.push(f);
+  };
+
+  return t;
+}(document, "script", "twitter-wjs"));
+</script>
+
 <script type="text/javascript" src="db.js"></script>
 <script type="text/javascript" src="index.js"></script>
 <script type="text/javascript" src="search.js"></script>
 
-<!--script type="text/javascript" src="sample-p10.js"></script></script-->
-<!--script type="text/javascript" src="lintool-tweets.js"></script></script-->
-
-<!--script type="text/javascript" src="topics-random.js"></script></script-->
+<script type="text/javascript" src="tweets.js"></script></script>
 <script type="text/javascript" src="topics.js"></script>
 
-</head>
- 
-<body>
- 
 <script>
 
 function statsButton(e) {
@@ -46,8 +61,17 @@ function logResults(results, k) {
       a[0] < b[0] ? 1 : -1);
   });
 
+  document.getElementById('container').innerHTML = "";
+
   for (var i = 0; i < k && i<tuples.length; i++) {
     console.log(tuples[i][0], tuples[i][1]);
+
+twttr.widgets.createTweet(
+  tuples[i][0],
+  document.getElementById('container'),
+  {}
+);
+
   }
 }
 
@@ -67,6 +91,9 @@ searcher.setNumDocs(1128929);
 
 function searchButton() {
   var q = document.querySelector("#query").value.split(" ");
+
+  q = q.map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
+           .filter(function(x) { return x.length > 0 ? true : false; });
 
   searcher.search(q, function(results) {
     console.log("Results for: " + q);
@@ -119,6 +146,9 @@ function sampleButton() {
 }
 
 </script>
+
+</head>
+<body>
  
 <button id="indexButton" onclick="indexButton()">Build Index</button>
 <button id="dfButton" onclick="dfButton()">Build DF Table</button>
@@ -135,6 +165,8 @@ function sampleButton() {
 <p>
 <button id="runTopics" onclick="runTopics()">Run Topics</button>
 </p>
+
+<div id="container"></div>
 
 </body>
 </html>

@@ -1,8 +1,8 @@
 function tokenizeToHistogram(s) {
   var raw = s.split(' ');
 
-//  raw = raw.map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
-//           .filter(function(x) { return x.length > 0 ? true : false; });
+  raw = raw.map(function(x) { return x.replace(/(^[^A-Za-z]+)|([^A-Za-z]+$)/g, "").toLowerCase()})
+           .filter(function(x) { return x.length > 0 ? true : false; });
 
   var tokens = {};
 
