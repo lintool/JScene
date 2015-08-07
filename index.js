@@ -25,8 +25,9 @@ var indexer = (function () {
 
   function index_tweet(i) {
     if (i != 0 && i % 500 == 0) {
-      console.log("Indexed " + i + " documents: Elapsed time = " +
-        (new Date().getTime() - startTime) + "ms");
+      var currentTime = new Date().getTime();
+      console.log("Indexed " + i + " documents: Elapsed time = " + (currentTime - startTime) + "ms");
+  document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>Indexed " + i + " documents: Elapsed time = " + (currentTime - startTime) + "ms</div>";
     }
 
     var tokens = tokenizeToHistogram(docs[i].text);

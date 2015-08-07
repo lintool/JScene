@@ -5,7 +5,7 @@ function indexedDBOk() {
   return "indexedDB" in window;
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+function initializeDB() {
   if (!indexedDBOk) return;
 
   var openRequest = indexedDB.open("index", 1);
@@ -30,4 +30,6 @@ document.addEventListener("DOMContentLoaded", function() {
   openRequest.onerror = function (e) {
     console.log("Initialization error!");
   }
-}, false);
+}
+
+document.addEventListener("DOMContentLoaded", initializeDB, false);

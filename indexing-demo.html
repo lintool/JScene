@@ -22,7 +22,6 @@
 <script type="text/javascript" src="tweets.js"></script></script>
 
 <script>
-
 function statsButton(e) {
   console.log("Getting stats...");
 
@@ -68,10 +67,16 @@ function deleteIndex() {
     document.getElementById('numPostings').innerHTML = 0;
     document.getElementById('numTerms').innerHTML = 0;
   };
+
+  // reinitialize in case user wants to re-index again.
+  initializeDB.apply();
 }
 
 function indexButton() {
   console.log("Starting to index...");
+
+  document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>Starting to index...</div>";
+
   indexer.index(tweets);
 }
 
