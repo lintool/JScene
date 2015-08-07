@@ -24,7 +24,7 @@ var indexer = (function () {
   var docs;
 
   function index_tweet(i) {
-    if (i != 0 && i % 1000 == 0) {
+    if (i != 0 && i % 500 == 0) {
       console.log("Indexed " + i + " documents: Elapsed time = " +
         (new Date().getTime() - startTime) + "ms");
     }
@@ -54,8 +54,12 @@ var indexer = (function () {
 
     request.onerror = function (e) {
       console.log("Error", e.target.error.name);
-      // Need better error trapping up this will do for now.
-      index_tweet(i + 1)
+
+        // Admittedly, this is a bit janky.
+        document.getElementById('message').innerHTML = "<div class='alert alert-danger alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Error!</strong> Does an index already exist? If so, please delete old index first. (Also try refreshing the page.)</div>";
+
+      // Don't continue!
+      //index_tweet(i + 1)
     }
 
     request.onsuccess = function (e) {
@@ -68,6 +72,10 @@ var indexer = (function () {
         console.log("Number of docs indexed: " + (i + 1));
         console.log("Number of tokens indexed: " + numTokens);
         console.log("Indexing time: " + (end - startTime) + "ms");
+
+        // Admittedly, this is a bit janky.
+        document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Indexing Complete!</strong> " + (i+1) + " documents indexed in " + (end - startTime) + " ms.</div>";
+
       }
     }
   }
@@ -79,6 +87,9 @@ var indexer = (function () {
 
     request.onerror = function (e) {
       console.log("Error", e.target.error.name);
+        // Admittedly, this is a bit janky.
+        document.getElementById('message').innerHTML = "<div class='alert alert-danger alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Error!</strong> Does an index already exist? If so, please delete old index first. (Also try refreshing the page.)</div>";
+
     }
 
     request.onsuccess = function (e) {
@@ -92,6 +103,9 @@ var indexer = (function () {
       } else {
         console.log("Done! Inserted " + tuples.length + " terms: Total elapsed time = " +
           (new Date().getTime() - startTime) + "ms");
+
+        // Admittedly, this is a bit janky.
+        document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>DF Table successfully built!</strong> Inserted " + tuples.length + " terms in " + (new Date().getTime() - startTime) + " ms.</div>";
       }
     }
   }

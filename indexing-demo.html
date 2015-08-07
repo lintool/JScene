@@ -17,31 +17,8 @@
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
 <![endif]-->
 
-<!-- https://dev.twitter.com/web/javascript/loading -->
-<!-- Check out this handy way of embeddin tweets: https://dev.twitter.com/web/embedded-tweets/javascript-create -->
-<script>
-twttr = (function(d, s, id) {
-  var js, fjs = d.getElementsByTagName(s)[0],
-    t = window.twttr || {};
-  if (d.getElementById(id)) return t;
-  js = d.createElement(s);
-  js.id = id;
-  js.src = "https://platform.twitter.com/widgets.js";
-  fjs.parentNode.insertBefore(js, fjs);
-
-  t._e = [];
-  t.ready = function(f) {
-    t._e.push(f);
-  };
-
-  return t;
-}(document, "script", "twitter-wjs"));
-</script>
-
 <script type="text/javascript" src="db.js"></script>
 <script type="text/javascript" src="index.js"></script>
-<script type="text/javascript" src="search.js"></script>
-
 <script type="text/javascript" src="tweets.js"></script></script>
 
 <script>
@@ -49,21 +26,48 @@ twttr = (function(d, s, id) {
 function statsButton(e) {
   console.log("Getting stats...");
 
-  var request1 = db.transaction(["postings"], "readonly")
-                   .objectStore("postings").count();
+  try{
+    var request1 = db.transaction(["postings"], "readonly")
+                     .objectStore("postings").count();
 
-  request1.onsuccess = function(e) {
-    console.log("Total number of entries: " + e.target.result);
-    document.getElementById('numPostings').innerHTML = e.target.result;
+    request1.onsuccess = function(e) {
+      console.log("Total number of entries: " + e.target.result);
+      document.getElementById('numPostings').innerHTML = e.target.result;
+    }
+
+    var request2 = db.transaction(["df"], "readonly")
+                     .objectStore("df").count();
+
+    request2.onsuccess = function(e) {
+      console.log("Total number of terms: " + e.target.result);
+      document.getElementById('numTerms').innerHTML = e.target.result;
+    }
+  } catch (e) {
+    console.log("Error opening index!");
+    document.getElementById('numPostings').innerHTML = 0;
+    document.getElementById('numTerms').innerHTML = 0;
   }
+}
 
-  var request2 = db.transaction(["df"], "readonly")
-                   .objectStore("df").count();
+function deleteIndex() {
+  // An important item to be a aware of is the promise that is returned
+  // from the deleteDatabase method will not complete until all the other
+  // connections to the database are closed.
 
-  request2.onsuccess = function(e) {
-    console.log("Total number of terms: " + e.target.result);
-    document.getElementById('numTerms').innerHTML = e.target.result;
-  }
+  db.close();
+
+  console.log("Deleting index...");
+
+  var DBDeleteRequest = indexedDB.deleteDatabase("index");
+    DBDeleteRequest.onerror = function(event) {
+    console.log("Error deleting index.");
+  };
+
+  DBDeleteRequest.onsuccess = function(event) {
+    console.log("Index deleted successfully");
+    document.getElementById('numPostings').innerHTML = 0;
+    document.getElementById('numTerms').innerHTML = 0;
+  };
 }
 
 function indexButton() {
@@ -75,8 +79,6 @@ function dfButton() {
   console.log("Starting to build df table...");
   indexer.buildDfTable(tweets);
 }
-
-searcher.setNumDocs(1128929);
 
 </script>
 
@@ -153,7 +155,10 @@ terms.</p>
 <button id="indexButton" onclick="indexButton()">Build Index</button>
 <button id="dfButton" onclick="dfButton()">Build DF Table</button>
 <button id="statsButton" onclick="statsButton()">Get Index Stats</button>
+<button id="deleteIndex" onclick="deleteIndex()">Delete index</button>
 </p>
+
+<div id="message"></div>
 
 <h3>Current Index Status</h3>
 
@@ -161,7 +166,6 @@ terms.</p>
 <tr><td>Number of Postings</td><td><div id="numPostings"></div></td></tr>
 <tr><td>Number of Terms (in DF table)</td><td><div id="numTerms"></div></td></tr>
 </table>
-
 
 </div>
 

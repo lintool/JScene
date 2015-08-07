@@ -5,10 +5,8 @@ function indexedDBOk() {
   return "indexedDB" in window;
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function() {
   if (!indexedDBOk) return;
-
-  //indexedDB.deleteDatabase("index");
 
   var openRequest = indexedDB.open("index", 1);
 
