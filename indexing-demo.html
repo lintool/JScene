@@ -74,14 +74,53 @@ function deleteIndex() {
 
 function indexButton() {
   console.log("Starting to index...");
-
   document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>Starting to index...</div>";
 
+  var updateMessageHandler = {
+    update: function(startTime, currentTime, i) {
+      console.log("Indexed " + i + " documents: Elapsed time = " + (currentTime - startTime) + "ms");
+      document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>Indexed " + i + " documents: Elapsed time = " + (currentTime - startTime) + " ms</div>";
+    },
+
+    finished: function(startTime, currentTime, i) {
+      console.log("Number of docs indexed: " + i);
+      console.log("Indexing time: " + (currentTime - startTime) + "ms");
+      document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Indexing Complete!</strong> " + i + " documents indexed in " + (currentTime - startTime) + " ms.</div>";
+    },
+
+    error: function(e) {
+      console.log("Error", e.target.error.name);
+      document.getElementById('message').innerHTML = "<div class='alert alert-danger alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Error!</strong> Does an index already exist? If so, please delete old index first. (Also try refreshing the page.)</div>";
+    }
+  };
+
+  indexer.setPostingsMessageHandler(updateMessageHandler);
   indexer.index(tweets);
 }
 
 function dfButton() {
   console.log("Starting to build df table...");
+  console.log("Starting to index...");
+  document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>Starting to build the df table...</div>";
+
+  var updateMessageHandler = {
+    update: function(startTime, currentTime, i) {
+      console.log("Inserted " + i + " terms: Elapsed time = " + (currentTime - startTime) + "ms");
+      document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>Inserted " + i + " terms: Elapsed time = " + (currentTime - startTime) + " ms.</div>";
+    },
+
+    finished: function(startTime, currentTime, i) {
+      console.log("Done! Inserted " + i + " terms: Total elapsed time = " + (currentTime - startTime) + "ms");
+      document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>DF Table successfully built!</strong> Inserted " + i + " terms in " + (currentTime - startTime) + " ms.</div>";
+    },
+
+    error: function(e) {
+      console.log("Error", e.target.error.name);
+      document.getElementById('message').innerHTML = "<div class='alert alert-danger alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Error!</strong> Does an index already exist? If so, please delete old index first. (Also try refreshing the page.)</div>";
+    }
+  };
+
+  indexer.setDfTableMessageHandler(updateMessageHandler);
   indexer.buildDfTable(tweets);
 }
 

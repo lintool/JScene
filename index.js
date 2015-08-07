@@ -18,16 +18,17 @@ function tokenizeToHistogram(s) {
 }
 
 var indexer = (function () {
+  var postingsMessageHandler = {};
+  var dfTableMessageHandler = {};
   var numTokens = 0;
   var startTime;
 
   var docs;
 
   function index_tweet(i) {
-    if (i != 0 && i % 500 == 0) {
-      var currentTime = new Date().getTime();
-      console.log("Indexed " + i + " documents: Elapsed time = " + (currentTime - startTime) + "ms");
-  document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>Indexed " + i + " documents: Elapsed time = " + (currentTime - startTime) + "ms</div>";
+    if (i != 0 && i % 100 == 0) {
+      // Update progress
+      postingsMessageHandler.update(startTime, new Date().getTime(), i);
     }
 
     var tokens = tokenizeToHistogram(docs[i].text);
@@ -54,13 +55,8 @@ var indexer = (function () {
     var request = store.add(tokens[j][1], t);
 
     request.onerror = function (e) {
-      console.log("Error", e.target.error.name);
-
-        // Admittedly, this is a bit janky.
-        document.getElementById('message').innerHTML = "<div class='alert alert-danger alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Error!</strong> Does an index already exist? If so, please delete old index first. (Also try refreshing the page.)</div>";
-
-      // Don't continue!
-      //index_tweet(i + 1)
+      // Dispatch to error message handler
+      postingsMessageHandler.error(e);
     }
 
     request.onsuccess = function (e) {
@@ -69,14 +65,8 @@ var indexer = (function () {
       } else if (i < docs.length - 1) {
         index_tweet(i + 1)
       } else {
-        var end = new Date().getTime();
-        console.log("Number of docs indexed: " + (i + 1));
-        console.log("Number of tokens indexed: " + numTokens);
-        console.log("Indexing time: " + (end - startTime) + "ms");
-
-        // Admittedly, this is a bit janky.
-        document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Indexing Complete!</strong> " + (i+1) + " documents indexed in " + (end - startTime) + " ms.</div>";
-
+        // We're done!
+        postingsMessageHandler.finished(startTime, new Date().getTime(), i+1);
       }
     }
   }
@@ -87,31 +77,34 @@ var indexer = (function () {
     var request = store.add(tuples[i][1], tuples[i][0]);
 
     request.onerror = function (e) {
-      console.log("Error", e.target.error.name);
-        // Admittedly, this is a bit janky.
-        document.getElementById('message').innerHTML = "<div class='alert alert-danger alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Error!</strong> Does an index already exist? If so, please delete old index first. (Also try refreshing the page.)</div>";
-
+      // Dispatch to error message handler
+      dfTableMessageHandler.error(e);
     }
 
     request.onsuccess = function (e) {
       if (i != 0 && i % 1000 == 0) {
-        console.log("Inserted " + i + " terms: Elapsed time = " +
-          (new Date().getTime() - startTime) + "ms");
+        // Update progress
+        dfTableMessageHandler.update(startTime, new Date().getTime(), i);
       }
 
       if (i < tuples.length - 1) {
         insertDf(i + 1, tuples);
       } else {
-        console.log("Done! Inserted " + tuples.length + " terms: Total elapsed time = " +
-          (new Date().getTime() - startTime) + "ms");
-
-        // Admittedly, this is a bit janky.
-        document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>DF Table successfully built!</strong> Inserted " + tuples.length + " terms in " + (new Date().getTime() - startTime) + " ms.</div>";
+        // We're done!
+        dfTableMessageHandler.finished(startTime, new Date().getTime(), tuples.length);
       }
     }
   }
 
   return {
+    setPostingsMessageHandler: function(h) {
+      postingsMessageHandler = h;
+    },
+
+    setDfTableMessageHandler: function(h) {
+      dfTableMessageHandler = h;
+    },
+
     index: function (d) {
       startTime = new Date().getTime();
       docs = d;
