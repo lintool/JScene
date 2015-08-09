@@ -86,6 +86,7 @@ function indexButton() {
       console.log("Number of docs indexed: " + i);
       console.log("Indexing time: " + (currentTime - startTime) + "ms");
       document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>Indexing Complete!</strong> " + i + " documents indexed in " + (currentTime - startTime) + " ms.</div>";
+      statsButton();
     },
 
     error: function(e) {
@@ -112,6 +113,7 @@ function dfButton() {
     finished: function(startTime, currentTime, i) {
       console.log("Done! Inserted " + i + " terms: Total elapsed time = " + (currentTime - startTime) + "ms");
       document.getElementById('message').innerHTML = "<div class='alert alert-success alert-dismissible' role='alert'><button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button><strong>DF Table successfully built!</strong> Inserted " + i + " terms in " + (currentTime - startTime) + " ms.</div>";
+      statsButton();
     },
 
     error: function(e) {
